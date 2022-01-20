@@ -16,6 +16,8 @@ module.exports = {
       id
       address
       multisig
+      display_name
+      full_name
     }
   }`,
   cancelBid: `mutation ($id: uuid!) {
@@ -33,21 +35,7 @@ module.exports = {
       id
     }
   }`,
-  createTransaction: `mutation create_transaction(
-    $transaction: transactions_insert_input!,
-    $hash: String!,
-    $asset: String!,
-    $user_id: uuid!,
-    $address: String!
-  ) {
-    delete_transactions(where: { 
-      hash: { _eq: $hash },
-      asset: { _eq: $asset },
-      user_id: { _eq: $user_id },
-      address: { _eq: $address },
-    }) {
-      affected_rows
-    }
+  createTransaction: `mutation create_transaction($transaction: transactions_insert_input!) {
     insert_transactions_one(object: $transaction) {
       id
     }
@@ -89,10 +77,12 @@ module.exports = {
   }`,
   getTransactionArtwork: `query($id: uuid!) {
     artworks(where: { id: { _eq: $id }}) {
+      id
       auction_start
       auction_end
       bid_increment
       owner {
+        id
         display_name
       }
       title
@@ -159,6 +149,12 @@ module.exports = {
   updateUser: `mutation update_user($user: users_set_input!, $id: uuid!) {
     update_users_by_pk(pk_columns: { id: $id }, _set: $user) {
       id
+    }
+  }`,
+  getUser: `query get_user_by_pk($id: uuid!) {
+    users_by_pk(id: $id) {
+      display_name
+      full_name
     }
   }`,
   getAvatars: `query { users { id, avatar_url }}`,
@@ -305,6 +301,37 @@ module.exports = {
         id
         user_id
       } 
+    }
+  }`,
+  getArtworkWithBidTransactionByHash: `query getArtworkWithBidTransactionByHash($id: uuid!, $hash: String!) {
+    artworks_by_pk(id: $id) {
+      id
+      title
+      slug
+      owner {
+        full_name
+        display_name
+      }
+      transactions(where:{type:{_eq:"bid"}}) {
+        amount
+        user{
+          display_name
+          full_name
+        }
+      }
+    }
+    transactions(where: {hash:{_eq: $hash}, type: {_eq: "bid"}}){
+      id
+      type
+      amount
+    }
+  }`,
+  getArtworkByPk: `query getArtworkByPk($id: uuid!) {
+    artworks_by_pk(id: $id) {
+      id
+      title
+      slug
+      list_price
     }
   }`,
   getUtxos: `query($address: String!) {

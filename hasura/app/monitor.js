@@ -75,6 +75,7 @@ const isSpent = async ({ ins }, artwork_id) => {
     let { transactions } = await q(getLastTransaction, { artwork_id });
 
     if (
+      !transactions.length ||
       compareAsc(
         parseISO(transactions[0].created_at),
         subMinutes(new Date(), 2)
@@ -108,6 +109,7 @@ const checkBids = async () => {
     for (let i = 0; i < activebids.length; i++) {
       let tx = activebids[i];
 
+      await sleep(1000);
       let p = Psbt.fromBase64(tx.psbt);
       try {
         if (await isSpent(p.data.globalMap.unsignedTx.tx, tx.artwork_id))
@@ -397,8 +399,11 @@ let scanUtxos = async (address) => {
     (tx) => !outs.length || tx.sequence > outs[0].sequence
   );
 
-  transactions.map(({ id, hash, asset: txAsset, json, confirmed }) => {
-    JSON.parse(json).vout.map(
+  transactions.map(async ({ id, hash, asset: txAsset, json, confirmed }) => {
+    if (!json) json = await electrs.url(`/tx/${hash}`).get().json();
+    else json = JSON.parse(json);
+
+    json.vout.map(
       ({ value, asset, scriptpubkey_address }, vout) =>
         scriptpubkey_address === address &&
         asset === txAsset &&
@@ -416,8 +421,11 @@ let scanUtxos = async (address) => {
     );
   });
 
-  transactions.map(({ json }) => {
-    JSON.parse(json).vin.map(({ txid, vout }) => {
+  transactions.map(async ({ hash, json }) => {
+    if (!json) json = await electrs.url(`/tx/${hash}`).get().json();
+    else json = JSON.parse(json);
+
+    json.vin.map(({ txid, vout }) => {
       let spent = [];
 
       outs = outs.filter((o) =>
